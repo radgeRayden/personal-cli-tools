@@ -1,4 +1,4 @@
-using import Array radl.IO.FileStream String enum struct Map hash Buffer print Capture
+using import Array radl.IO.FileStream String enum struct Map hash Buffer print Capture radl.strfmt
 import C.stdlib .common
 from (import C.stdio) let printf
 from (import stb.sprintf) let snprintf
@@ -66,8 +66,6 @@ fn show-help ()
                     --month (default)
                     --year
                     --period <start> [<end>]
-            import <logfile>: import an external logfile
-
 
 fn parse-log-file (logfile filter)
     entries := ctx.log-entries
@@ -76,8 +74,7 @@ fn parse-log-file (logfile filter)
 
     try
         for line in ('lines logfile)
-            result := 'match regexp line
-            try ('unwrap result)
+            try ('unwrap ('match regexp line))
             then (info)
                 caps := info.captures
                 timestamp := C.stdlib.strtoul (caps @ 1) null 10
@@ -94,9 +91,10 @@ fn parse-log-file (logfile filter)
                 if (filter timestamp)
                     'append entries
                         LogEntry timestamp kind (copy (caps @ 3)) (copy (caps @ 4))
-    else
-        # return 2
-        return;
+            else ()
+    except (ex)
+        print "Error parsing log file:" ex
+        common.exit 2
 
     games := ctx.games
     for entry in entries
@@ -160,7 +158,7 @@ fn main (argc argv)
         show-help;
         return 1
 
-    path := argv @ 1
+    path := f"${(common.get-data-directory)}/playtracker/logfile.txt"
     let logfile =
         try (FileStream path FileMode.Read)
         except (ex)
