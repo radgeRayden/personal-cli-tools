@@ -8,7 +8,7 @@ let C =
             #include <unistd.h>
 
 do
-    from C.extern let clock_gettime system fork execv waitpid exit
+    from C.extern let clock_gettime system fork execv waitpid exit mktime localtime
     from C.define let CLOCK_MONOTONIC
-    from C.struct let timespec
+    from C.struct let timespec tm
     local-scope;
