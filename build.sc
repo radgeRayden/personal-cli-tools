@@ -8,3 +8,4 @@ inline make-object (name main)
             local-scope;
 
 make-object "link-roulette" (import .src.link-roulette)
+make-object "playtracker" (import .src.playtracker)

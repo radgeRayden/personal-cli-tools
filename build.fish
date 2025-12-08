@@ -10,3 +10,4 @@ function compile -a program;
 end
 
 compile link-roulette
+compile playtracker
