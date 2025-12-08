@@ -1,0 +1,6 @@
+.eo/**/**
+bin/**/**
+include/**/**
+lib/**/**
+obj/**/**
+errors.err
