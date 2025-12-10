@@ -1,7 +1,7 @@
 using import Array Map print Set String struct radl.IO.FileStream radl.strfmt
 
 from (import radl.regex) let RegexPattern
-import .C .common radl.random C.errno
+import .C .common radl.random C.errno .chrono
 
 struct LinkInfo
     url : String
@@ -84,7 +84,7 @@ fn select-link ()
     then (file)
         try! (load-link-list file ctx.unvisited-links)
         if ((countof ctx.unvisited-links) > 0)
-            local rng = (radl.random.RNG (u64 (common.clock-monotonic)))
+            local rng = (radl.random.RNG (u64 (chrono.clock-monotonic)))
             idx := rng (countof ctx.unvisited-links)
             link := copy (ctx.unvisited-links @ idx)
             print f"Opening link: ${link.url} | ${link.title}"

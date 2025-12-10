@@ -2,7 +2,6 @@ using import Array Option String radl.strfmt print radl.ext
 import .C
 from (import C.errno) let errno
 from (import C.string) let strerror
-import C.time
 
 fn get-environment-variable (name)
     using import C.stdlib
@@ -25,11 +24,6 @@ fn get-data-directory ()
     try ('unwrap (get-environment-variable "XDG_DATA_HOME"))
     then (dir) dir
     else f"${(get-home-directory)}/.local/share"
-
-fn clock-monotonic ()
-    local ts : C.timespec
-    assert ((C.clock_gettime C.CLOCK_MONOTONIC &ts) == 0)
-    (ts.tv_sec * 1000000000) + ts.tv_nsec
 
 fn exit (code)
     C.exit code
@@ -58,20 +52,7 @@ fn execute-program (path args...)
         # the exit code is in the 8 least significant bits
         (status & 0xFF00) >> 8
 
-fn timestamp-now ()
-    C.time.time null
-
-fn... timestamp-day (year, month = 1, day = 1)
-    local date-now := C.localtime (typeinit@ (timestamp-now))
-    C.mktime
-        typeinit@
-            tm_year = year - 1900
-            tm_mon = month - 1
-            tm_mday = day
-            tm_gmtoff = date-now.tm_gmtoff
-            tm_isdst = -1
-
 do
     let get-environment-variable get-home-directory get-config-directory get-data-directory \
-        clock-monotonic execute-program exit timestamp-now timestamp-day
+        execute-program exit
     local-scope;
