@@ -71,6 +71,7 @@ struct AppContext
     log-entries : (Array LogEntry)
     games : (Map GameInfoKey GameInfo)
     game-list : (Array GameInfo)
+    steam-games : (Map u32 String)
 
 global ctx : AppContext
 
@@ -83,6 +84,20 @@ fn show-help ()
                     --month (default)
                     --year
                     --period <start> [<end>]
+
+fn load-steam-appid-mappings ()
+    path := f"${(common.get-data-directory)}/playtracker/app-id-mapping.txt"
+    local regexp =
+        try! (regex.RegexPattern "(\\d+) (.+)$")
+
+    mappings := FileStream path FileMode.Read
+    for line in ('lines mappings)
+        try ('unwrap ('match regexp line))
+        then (info)
+            caps := info.captures
+            appid := C.stdlib.strtoul (caps @ 1) null 10
+            name := 'from-rawstring String (caps @ 2)
+            'set ctx.steam-games (appid as u32) name
 
 fn load-log-file ()
     path := f"${(common.get-data-directory)}/playtracker/logfile.txt"
@@ -151,9 +166,14 @@ fn parse-log-file (logfile filter)
     ()
 
 fn display-list ()
+    try (load-steam-appid-mappings)
+    except (ex) (print f"Could not load steam appid mappings: ${ex}")
+
     local formatted-time = heapbuffer char 64
     for i in (range 16) (formatted-time @ i = 0)
     for i game in (enumerate ctx.game-list)
+        if (game.platform == "steam")
+            game.name = copy ('getdefault ctx.steam-games ((C.stdlib.strtoul game.name null 10) as u32) S"Unknown Steam Game")
         t := game.playtime
         hours minutes seconds := t // 3600, (t // 60) % 60, t % 60
         ptr count := 'data formatted-time
