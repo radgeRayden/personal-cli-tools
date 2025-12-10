@@ -12,6 +12,8 @@ end
 mkdir -p $data_path
 mkdir -p $state_path
 
+update-steam-appid-mapping
+
 set logfile $data_path/logfile.txt
 
 function timestamp
@@ -20,7 +22,7 @@ end
 
 while true
     set now (timestamp)
-    for appid in (ps -ef | rg -or '$1' "SteamLaunch AppId=(\d+)")
+    for appid in (ps -ef | rg -or '$1' "SteamLaunch AppId=(\d+)" | sort -u)
         echo $now >> $state_path/steam_session_$appid
     end
 
