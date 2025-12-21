@@ -22,7 +22,7 @@ end
 
 while true
     set now (timestamp)
-    for appid in (ps -ef | rg -or '$1' "SteamLaunch AppId=(\d+)" | sort -u)
+    for appid in (ps -ef | rg --pcre2 -or '$1' "SteamLaunch AppId=(\d+) (?!Install=1)" | sort -u)
         echo $now >> $state_path/steam_session_$appid
     end
 
