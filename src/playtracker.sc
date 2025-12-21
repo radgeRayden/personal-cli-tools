@@ -72,6 +72,7 @@ struct AppContext
     games : (Map GameInfoKey GameInfo)
     game-list : (Array GameInfo)
     steam-games : (Map u32 String)
+    total-playtime : i64
 
 global ctx : AppContext
 
@@ -150,7 +151,9 @@ fn parse-log-file (logfile filter)
                 if (not info.pending?)
                     continue;
                 info.pending? = false
-                info.playtime += (entry.timestamp - info.last-start)
+                session-time := entry.timestamp - info.last-start
+                info.playtime += session-time
+                ctx.total-playtime += session-time
             default
                 abort;
         else
@@ -165,13 +168,13 @@ fn parse-log-file (logfile filter)
     'sort game-list ((x) -> (- (i64 x.playtime)))
     ()
 
-fn display-list ()
+fn... display-list (line-count : i32 = 10000)
     try (load-steam-appid-mappings)
     except (ex) (print f"Could not load steam appid mappings: ${ex}")
 
     local formatted-time = heapbuffer char 64
     for i in (range 16) (formatted-time @ i = 0)
-    for i game in (enumerate ctx.game-list)
+    for i game in (zip (range line-count) ctx.game-list)
         if (game.platform == "steam")
             game.name = copy ('getdefault ctx.steam-games ((C.stdlib.strtoul game.name null 10) as u32) S"Unknown Steam Game")
         t := game.playtime
@@ -181,11 +184,10 @@ fn display-list ()
         local formatted-name = game.name .. " " .. (char-repeat c"." (50 - (utf8-len game.name) - 1))
         printf "%3d. %10s | %s %s\n" (i + 1) ('data formatted-time) (formatted-name as rawstring) (game.platform as rawstring)
 
-fn... display-period (start : Date, end : Date)
+fn... calculate-period (start : Date, end : Date)
     ts-start ts-end := chrono.timestamp-day start, chrono.timestamp-day end
     capture period-filter (timestamp) {ts-start ts-end} (timestamp >= ts-start and timestamp < ts-end)
     parse-log-file (load-log-file) period-filter
-    display-list;
 
 fn main (argc argv)
     switch argc
@@ -206,12 +208,20 @@ fn main (argc argv)
                     Date (today.year + 1) 1 1
                 else
                     Date today.year (today.month + 1) 1
-            print f"Playtime for the month of ${month-names @ (today.month - 1)}"
-            display-period month-start next-month
+
+            calculate-period month-start next-month
+
+            total-hours := ctx.total-playtime // 3600
+            fractional-hour := ((ctx.total-playtime % 3600) * 10) // 3600
+            print f"Playtime for the month of ${month-names @ (today.month - 1)} (${total-hours}.${fractional-hour} hours)"
+            display-list;
         case "year"
             today := (Date.today)
-            print f"Playtime for the year of ${today.year}"
-            display-period (Date today.year 1 1) (Date (today.year + 1) 1 1)
+            calculate-period (Date today.year 1 1) (Date (today.year + 1) 1 1)
+            total-hours := ctx.total-playtime // 3600
+            fractional-hour := ((ctx.total-playtime % 3600) * 10) // 3600
+            print f"Playtime for the year of ${today.year} (${total-hours}.${fractional-hour} hours)"
+            display-list;
         default
             show-help;
             return 1
