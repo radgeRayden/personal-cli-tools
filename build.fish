@@ -11,7 +11,14 @@ function compile -a program;
     ln -sf (realpath ./bin/$program) $binf/$program
 end
 
+function copy_script -a script
+    ln -sf (realpath ./src/$script.fish) $binf/$script
+end
+
 compile link-roulette
 compile playtracker
-ln -sf (realpath ./src/steam-game-monitor.fish) $binf/steam-game-monitor
-ln -sf (realpath ./src/update-steam-appid-mapping.fish) $binf/update-steam-appid-mapping
+copy_script steam-game-monitor
+copy_script update-steam-appid-mapping
+copy_script game-heartbeat
+copy_script playtracker-crash-recovery
+copy_script log-playtime
