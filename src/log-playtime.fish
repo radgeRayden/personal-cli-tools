@@ -22,4 +22,4 @@ else
     rm -f $state_path/"$hash"_heartbeat.txt
 end
 
-echo (date -u "+%s") $operation $id >> $data_path/playtracker/logfile.txt
+echo (date -u "+%s") $operation $id >> $data_path/logfile.txt
