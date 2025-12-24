@@ -1,5 +1,6 @@
-using import Array radl.IO.FileStream String enum struct Map hash Buffer print Capture radl.strfmt
-import C.stdlib .common .chrono
+using import Array radl.IO.FileStream String enum struct Map hash Buffer print Capture radl.strfmt slice \
+    itertools
+import C.stdlib .common .chrono UTF-8
 
 from (import C.stdio) let printf
 from (import stb.sprintf) let snprintf
@@ -31,7 +32,20 @@ fn utf8-len (str)
         drain
     deref len
 
+inline Array-sink (src)
+    result := (view src)
+    Collector
+        inline "start" ()
+        inline "valid?" ()
+            true
+        inline "finalize" ()
+            result
+        inline "insert" (src)
+            'append result (src)
+            ()
+
 fn char-repeat (ch count)
+    assert (count >= 0)
     local str : String
     'resize str count
     for c in str
@@ -112,7 +126,7 @@ fn load-log-file ()
 fn parse-log-file (logfile filter)
     entries := ctx.log-entries
     local regexp = 
-        try! (regex.RegexPattern "(\\d+) (start|end) (.+) \\((.+)\\)")
+        try! (regex.RegexPattern "^(\\d+) (start|end) (.+) \\((.+)\\)$")
 
     try
         for line in ('lines logfile)
@@ -168,6 +182,23 @@ fn parse-log-file (logfile filter)
     'sort game-list ((x) -> (- (i64 x.playtime)))
     ()
 
+fn format-game-name (name)
+    name-length := utf8-len name
+    let name =
+        if (name-length >= 50)
+            local decoded : (Array i32)
+            local lhs : String
+            local rhs : String
+
+            # NOTE: maybe this can be done in a single collector chain?
+            ->> name UTF-8.decoder (Array-sink decoded)
+            ->> (trim (lslice (view decoded) 22)) UTF-8.encoder (Array-sink lhs)
+            ->> (trim (rslice (view decoded) (name-length - 22))) UTF-8.encoder (Array-sink rhs)
+            .. lhs "..." rhs
+        else (copy name)
+    .. name " " (char-repeat c"." (50 - (i64 (utf8-len name)) - 1))
+
+
 fn... display-list (line-count : i32 = 10000)
     try (load-steam-appid-mappings)
     except (ex) (print f"Could not load steam appid mappings: ${ex}")
@@ -181,7 +212,8 @@ fn... display-list (line-count : i32 = 10000)
         hours minutes seconds := t // 3600, (t // 60) % 60, t % 60
         ptr count := 'data formatted-time
         snprintf ptr (i32 count) "%02d:%02d%:%02d" hours minutes seconds
-        local formatted-name = game.name .. " " .. (char-repeat c"." (50 - (utf8-len game.name) - 1))
+
+        local formatted-name = format-game-name game.name
         printf "%3d. %10s | %s %s\n" (i + 1) ('data formatted-time) (formatted-name as rawstring) (game.platform as rawstring)
 
 fn... calculate-period (start : Date, end : Date)
