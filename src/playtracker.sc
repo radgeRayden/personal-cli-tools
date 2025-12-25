@@ -32,18 +32,6 @@ fn utf8-len (str)
         drain
     deref len
 
-inline Array-sink (src)
-    result := (view src)
-    Collector
-        inline "start" ()
-        inline "valid?" ()
-            true
-        inline "finalize" ()
-            result
-        inline "insert" (src)
-            'append result (src)
-            ()
-
 fn char-repeat (ch count)
     assert (count >= 0)
     local str : String
@@ -186,14 +174,15 @@ fn format-game-name (name)
     name-length := utf8-len name
     let name =
         if (name-length >= 50)
-            local decoded : (Array i32)
             local lhs : String
             local rhs : String
+            count := retain (each (infinite-range))
 
-            # NOTE: maybe this can be done in a single collector chain?
-            ->> name UTF-8.decoder (Array-sink decoded)
-            ->> (trim (lslice (view decoded) 22)) UTF-8.encoder (Array-sink lhs)
-            ->> (trim (rslice (view decoded) (name-length - 22))) UTF-8.encoder (Array-sink rhs)
+            ->> name UTF-8.decoder count
+                gate ((c i) -> (i < (name-length - 22)))
+                    (compose (take 22) UTF-8.encoder) lhs
+                    UTF-8.encoder rhs
+
             .. lhs "..." rhs
         else (copy name)
     .. name " " (char-repeat c"." (50 - (i64 (utf8-len name)) - 1))
