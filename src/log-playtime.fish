@@ -16,7 +16,7 @@ set hash (printf "%s" $id | md5sum | cut -f 1 -d " ")
 
 if [ $operation = "start" ]
     echo $id > $state_path/"$hash"_heartbeat.txt
-    nohup game-heartbeat $hash &
+    (game-heartbeat $hash &)
     disown
 else
     rm -f $state_path/"$hash"_heartbeat.txt
