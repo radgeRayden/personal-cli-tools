@@ -4,10 +4,12 @@ set binf ~/.local/bin
 
 mkdir -p "./obj"
 mkdir -p "./bin"
+cp -f ./src/wcwidth.c ./include/
+
 scopes -e ./build.sc
 
 function compile -a program;
-    gcc -O2 -o ./bin/$program ./obj/$program.o -I./include ./src/remimu.c -DSTB_SPRINTF_IMPLEMENTATION -x c ./include/stb_sprintf.h
+    gcc -O2 -o ./bin/$program ./obj/$program.o -I./include ./src/remimu.c ./src/wcwidth.c -DSTB_SPRINTF_IMPLEMENTATION -x c ./include/stb_sprintf.h
     ln -sf (realpath ./bin/$program) $binf/$program
 end
 

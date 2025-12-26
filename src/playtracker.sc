@@ -1,6 +1,6 @@
 using import Array radl.IO.FileStream String enum struct Map hash Buffer print Capture radl.strfmt slice \
     itertools
-import C.stdlib .common .chrono UTF-8
+import C.stdlib .common .chrono UTF-8 .C
 
 from (import C.stdio) let printf
 from (import stb.sprintf) let snprintf
@@ -22,15 +22,35 @@ global month-names :=
         "November"
         "December"
 
-fn utf8-len (str)
-    using import itertools UTF-8
-    local len : usize
-    ->>
-        str
-        decoder
-        map ((x) -> (len += 1))
-        drain
-    deref len
+fn string-console-width (str)
+    local decoded : (Array i32)
+    ->> str UTF-8.decoder (view decoded)
+    ptr count := 'data decoded
+    C.wcswidth ptr count
+
+inline take-limit (init mapf limitf)
+    inline take-limit-inner (coll)
+        vvv bind child
+        do
+            let init full? done push = ((coll as Collector))
+            local-scope;
+
+        Collector
+            inline "start" ()
+                _ true init (child.init)
+            inline "valid?" (ok? result state...)
+                ok? and (child.full? state...)
+            inline "finalize" (ok? result state...)
+                child.done state...
+            inline "insert" (src ok? result state...)
+                src := (src)
+                result := mapf result src
+                ok? := limitf result
+                _ ok?
+                    if ok?
+                        _ result (child.push (() -> src) state...)
+                    else
+                        _ result state...
 
 fn char-repeat (ch count)
     assert (count >= 0)
@@ -171,22 +191,31 @@ fn parse-log-file (logfile filter)
     ()
 
 fn format-game-name (name)
-    name-length := utf8-len name
-    let name =
-        if (name-length >= 50)
+    name-width := string-console-width name
+    let name width =
+        if (name-width >= 50)
+            local decoded : (Array i32)
+            ->> name UTF-8.decoder (view decoded)
             local lhs : String
-            local rhs : String
-            count := retain (each (infinite-range))
+            local rrhs : (Array i32)
+            ->> decoded
+                take-limit 0 ((t x) -> (t + (C.wcwidth x)))
+                    (t) -> (t <= 22)
+                UTF-8.encoder
+                view lhs
 
-            ->> name UTF-8.decoder count
-                gate ((c i) -> (i < (name-length - 22)))
-                    (compose (take 22) UTF-8.encoder) lhs
-                    UTF-8.encoder rhs
+            ->> ('reverse decoded)
+                take-limit 0 ((t x) -> (t + (C.wcwidth x)))
+                    (t) -> (t <= 22)
+                view rrhs
 
-            .. lhs "..." rhs
-        else (copy name)
-    .. name " " (char-repeat c"." (50 - (i64 (utf8-len name)) - 1))
+            local abbreviated = lhs .. "..."
 
+            ->> ('reverse (view rrhs)) UTF-8.encoder (view abbreviated)
+            _ abbreviated (string-console-width abbreviated)
+
+        else (_ name name-width)
+    .. (view name) " " (char-repeat c"." (50 - width - 1))
 
 fn... display-list (line-count : i32 = 10000)
     try (load-steam-appid-mappings)
@@ -202,7 +231,7 @@ fn... display-list (line-count : i32 = 10000)
         ptr count := 'data formatted-time
         snprintf ptr (i32 count) "%02d:%02d%:%02d" hours minutes seconds
 
-        local formatted-name = format-game-name game.name
+        local formatted-name = format-game-name (copy game.name)
         printf "%3d. %10s | %s %s\n" (i + 1) ('data formatted-time) (formatted-name as rawstring) (game.platform as rawstring)
 
 fn... calculate-period (start : Date, end : Date)
