@@ -7,20 +7,13 @@ from (import stb.sprintf) let snprintf
 from chrono let Date
 regex := import radl.regex
 
+inline mut! (T)
+    local _? : T
+    _?
+
 global month-names :=
-    arrayof String
-        "January"
-        "February"
-        "March"
-        "April"
-        "May"
-        "June"
-        "July"
-        "August"
-        "September"
-        "October"
-        "November"
-        "December"
+    arrayof String "January" "February" "March" "April" "May" "June" \
+        "July" "August" "September" "October" "November" "December"
 
 fn string-console-width (str)
     local decoded : (Array i32)
@@ -191,31 +184,27 @@ fn parse-log-file (logfile filter)
     ()
 
 fn format-game-name (name)
-    name-width := string-console-width name
-    let name width =
-        if (name-width >= 50)
-            local decoded : (Array i32)
-            ->> name UTF-8.decoder (view decoded)
-            local lhs : String
-            local rrhs : (Array i32)
+    local name = name
+    local width = string-console-width name
+
+    if (width >= 50)
+        decoded := ->> name UTF-8.decoder (mut! (Array i32))
+        let lhs =
             ->> decoded
                 take-limit 0 ((t x) -> (t + (C.wcwidth x)))
                     (t) -> (t <= 22)
                 UTF-8.encoder
-                view lhs
+                mut! String
 
+        let rrhs =
             ->> ('reverse decoded)
                 take-limit 0 ((t x) -> (t + (C.wcwidth x)))
                     (t) -> (t <= 22)
-                view rrhs
+                mut! (Array i32)
+        name = .. lhs "..." (->> ('reverse rrhs) UTF-8.encoder (mut! String))
+        width = string-console-width name
 
-            local abbreviated = lhs .. "..."
-
-            ->> ('reverse (view rrhs)) UTF-8.encoder (view abbreviated)
-            _ abbreviated (string-console-width abbreviated)
-
-        else (_ name name-width)
-    .. (view name) " " (char-repeat c"." (50 - width - 1))
+    .. name " " (char-repeat c"." (50 - width - 1))
 
 fn... display-list (line-count : i32 = 10000)
     try (load-steam-appid-mappings)
