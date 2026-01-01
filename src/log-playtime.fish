@@ -17,8 +17,10 @@ set hash (printf "%s" $id | md5sum | cut -f 1 -d " ")
 if [ $operation = "start" ]
     echo $id > $state_path/"$hash"_heartbeat.txt
     fish -c "game-heartbeat $hash &"
+    printf "Log Starting: %s" $id
 else
     rm -f $state_path/"$hash"_heartbeat.txt
+    printf "Log Ending: %s" $id
 end
 
 echo (date -u "+%s") $operation $id >> $data_path/logfile.txt
