@@ -52,7 +52,11 @@ fn execute-program (path args...)
         # the exit code is in the 8 least significant bits
         (status & 0xFF00) >> 8
 
+fn subshell (command)
+    # TODO: do proper error checking
+    C.system command
+
 do
     let get-environment-variable get-home-directory get-config-directory get-data-directory \
-        execute-program exit
+        execute-program subshell exit
     local-scope;

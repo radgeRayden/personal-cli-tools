@@ -88,7 +88,7 @@ fn select-link ()
             idx := rng (countof ctx.unvisited-links)
             link := copy (ctx.unvisited-links @ idx)
             print f"Opening link: ${link.url} | ${link.title}"
-            common.execute-program "/usr/bin/xdg-open" link.url
+            common.subshell f"xdg-open \"${link.url}\" 2>/dev/null"
             ctx.unvisited-links @ idx = ('pop ctx.unvisited-links)
             serialize-links;
             append-to-visited link
