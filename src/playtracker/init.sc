@@ -1,6 +1,6 @@
 using import Array radl.IO.FileStream String enum struct Map hash Buffer print Capture radl.strfmt slice \
     itertools
-import C.stdlib .common .chrono UTF-8 .C
+import C.stdlib ..common ..chrono UTF-8 ..C
 
 from (import C.stdio) let printf
 from (import stb.sprintf) let snprintf
@@ -112,7 +112,7 @@ fn load-steam-appid-mappings ()
         then (info)
             caps := info.captures
             appid := C.stdlib.strtoul (caps @ 1) null 10
-            name := 'from-rawstring String (caps @ 2)
+            name := copy (caps @ 2)
             'set ctx.steam-games (appid as u32) name
 
 fn load-log-file ()
@@ -206,7 +206,7 @@ fn format-game-name (name)
 
     .. name " " (char-repeat c"." (50 - width - 1))
 
-fn... display-list (line-count : i32 = 10000)
+fn... display-list (line-count : i32 = 20)
     try (load-steam-appid-mappings)
     except (ex) (print f"Could not load steam appid mappings: ${ex}")
 

@@ -10,17 +10,21 @@ scopes -e ./build.sc
 
 function compile -a program;
     gcc -O2 -o ./bin/$program ./obj/$program.o -I./include ./src/remimu.c ./src/wcwidth.c -DSTB_SPRINTF_IMPLEMENTATION -x c ./include/stb_sprintf.h
-    ln -sf (realpath ./bin/$program) $binf/$program
 end
 
-function copy_script -a script
-    ln -sf (realpath ./src/$script.fish) $binf/$script
+function copy_artifact -a artifact
+    set -l plain_name (string match -rg "^(.+)\..+\$" (basename $artifact))
+    ln -sf (realpath $artifact) $binf/$plain_name
 end
 
 compile link-roulette
 compile playtracker
-copy_script steam-game-monitor
-copy_script update-steam-appid-mapping
-copy_script game-heartbeat
-copy_script playtracker-crash-recovery
-copy_script log-playtime
+copy_artifact ./bin/link-roulette
+copy_artifact ./bin/playtracker
+
+set base "./src/playtracker/"
+copy_artifact $base/steam-game-monitor.fish
+copy_artifact $base/update-steam-appid-mapping.fish
+copy_artifact $base/game-heartbeat.fish
+copy_artifact $base/playtracker-crash-recovery.fish
+copy_artifact $base/log-playtime.fish
