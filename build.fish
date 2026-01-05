@@ -13,7 +13,7 @@ function compile -a program;
 end
 
 function copy_artifact -a artifact
-    set -l plain_name (string match -rg "^(.+)\..+\$" (basename $artifact))
+    set -l plain_name (string split -r -m 1 -f 1 . (basename $artifact))
     ln -sf (realpath $artifact) $binf/$plain_name
 end
 
