@@ -9,7 +9,7 @@ let C =
             #include "wcwidth.c"
 
 do
-    from C.extern let clock_gettime system fork execv waitpid exit mktime localtime
+    from C.extern let clock_gettime system fork execv waitpid exit mktime localtime strftime
     from C.define let CLOCK_MONOTONIC
     from C.struct let timespec tm
     wcwidth := C.extern.mk_wcwidth

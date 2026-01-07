@@ -11,10 +11,6 @@ inline mut! (T)
     local _? : T
     _?
 
-global month-names :=
-    arrayof String "January" "February" "March" "April" "May" "June" \
-        "July" "August" "September" "October" "November" "December"
-
 fn string-console-width (str)
     local decoded : (Array i32)
     ->> str UTF-8.decoder (view decoded)
@@ -252,7 +248,7 @@ fn main (argc argv)
 
             total-hours := ctx.total-playtime // 3600
             fractional-hour := ((ctx.total-playtime % 3600) * 10) // 3600
-            print f"Playtime for the month of ${month-names @ (today.month - 1)} (${total-hours}.${fractional-hour} hours)"
+            print f"Playtime for the month of ${(chrono.get-month-name today.month)}, ${today.year} (${total-hours}.${fractional-hour} hours)"
             display-list;
         case "year"
             today := (Date.today)

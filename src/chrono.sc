@@ -1,4 +1,4 @@
-using import radl.ext struct
+using import radl.ext struct String
 import C.time .C
 
 fn clock-monotonic ()
@@ -47,7 +47,27 @@ fn days-in-month (year month)
     date := C.localtime (typeinit@ last-day)
     date.tm_mday
 
+fn get-month-name (month)
+    local result : String
+    loop (max-size = 16)
+        if (max-size > 64)
+            result = "format error"
+            break;
+
+        'resize result max-size
+        let bytes = 
+            C.strftime result 16 "%B"
+                typeinit@
+                    tm_mon = month - 1
+
+        if (bytes > 0)
+            'resize result bytes
+            break;
+        else
+            max-size * 2
+    result
+
 do
-    let clock-monotonic timestamp-now timestamp-day days-in-month
+    let clock-monotonic timestamp-now timestamp-day days-in-month get-month-name
     let Date
     local-scope;
