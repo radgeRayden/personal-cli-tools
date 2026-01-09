@@ -150,9 +150,11 @@ run-stage;
 @@ memo
 inline ParameterMap (sourceT)
     struct (.. "ParameterMap<" (tostring sourceT) ">")
-        ParameterFunction := @ (raises
-                                (function void (viewof String) (mutable& (viewof sourceT)))
-                                ArgumentParsingErrorKind)
+        ContextType := sourceT
+        let ParameterFunction = 
+            @ (raises
+                (function void (viewof String) (mutable& (viewof ContextType)))
+                ArgumentParsingErrorKind)
 
         struct NamedParameter
             name : String
@@ -188,13 +190,13 @@ inline ParameterMap (sourceT)
                                     (getattr ctx k) = (convert-argument (view value) T) as T
                             mandatory? = option?
                             flag? = flag?
-                sourceT.__fields__
+                ContextType.__fields__
 
         inline map-over-metadata (metadata mapf)
             let tuples... =
                 destructure-list
                     # if the list is not defined, do nothing
-                    static-try (getattr sourceT metadata)
+                    static-try (getattr ContextType metadata)
                     else '()
             va-map 
                 inline (t)
@@ -206,15 +208,17 @@ inline ParameterMap (sourceT)
         fn define-short-names (self)
             map-over-metadata 'ParameterShortNames
                 inline (k v)
-                    check-alias sourceT v "short name of undefined parameter"
-                    short-name long-name := (char32 (static-eval (k as Symbol as string))), Symbol->String v
+                    check-alias ContextType v "short name of undefined parameter"
+                    let short-name long-name =
+                        char32 (static-eval (k as Symbol as string))
+                        Symbol->String v
                     'set self.short-names short-name (copy long-name)
 
         fn define-aliases (self)
             map-over-metadata 'ParameterAliases
                 inline (...)
                     original aliases... := ...
-                    check-alias sourceT original "alias for undefined parameter"
+                    check-alias ContextType original "alias for undefined parameter"
                     va-map
                         inline (alias)
                             'set self.parameter-aliases 
@@ -225,7 +229,7 @@ inline ParameterMap (sourceT)
         fn define-positional-parameters (self)
             map-over-metadata 'PositionalParameters
                 inline (param)
-                    check-alias sourceT param "undefined positional parameter"
+                    check-alias ContextType param "undefined positional parameter"
                     'append self.positional-parameters (copy (Symbol->String param))
 
         inline __typecall (cls)
