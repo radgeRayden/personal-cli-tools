@@ -1,4 +1,4 @@
-using import Array enum Map slice struct String radl.regex itertools Option
+using import Array enum Map slice struct String radl.regex itertools Option radl.strfmt
 from (import radl.String+) let starts-with? ASCII-tolower
 from (import C.stdlib) let strtoll strtod
 from (import UTF-8) let decoder char32
@@ -120,15 +120,30 @@ spice convert-argument (value T)
     else
         error (.. "Could not convert incoming argument to struct field of type " (tostring T))
 
-fn destructure-list (list)
-    if (empty? list)
+spice destructure-list (data)
+    push-traceback data 'ProveExpression
+    data as:= list
+    if (empty? data)
         return (sc_argument_list_new 0 null)
-    head rest := decons list
+    head rest := decons data
     if (head == 'square-list or head == 'curly-list)
-        head rest := decons list
+        head rest := decons data
         `(unpack [(uncomma rest)])
     else
-        `(unpack [(uncomma list)])
+        `(unpack [(uncomma data)])
+
+fn has-field? (T field)
+    try (sc_prove `(getattr (nullof T) field)) true
+    else false
+
+spice check-alias (ctxT field msg-fragment)
+    field as:= Symbol
+    msg-fragment as:= string
+
+    if (not (has-field? ctxT field))
+        trace-error "while generating parameter map"
+            f"parameter map contains ${msg-fragment} \"${field}\"" as string
+    `()
 
 run-stage;
 
@@ -177,7 +192,6 @@ inline ParameterMap (sourceT)
 
         inline map-over-metadata (metadata mapf)
             let tuples... =
-                vvv static-eval
                 destructure-list
                     # if the list is not defined, do nothing
                     static-try (getattr sourceT metadata)
@@ -192,6 +206,7 @@ inline ParameterMap (sourceT)
         fn define-short-names (self)
             map-over-metadata 'ParameterShortNames
                 inline (k v)
+                    check-alias sourceT v "short name of undefined parameter"
                     short-name long-name := (char32 (static-eval (k as Symbol as string))), Symbol->String v
                     'set self.short-names short-name (copy long-name)
 
@@ -199,6 +214,7 @@ inline ParameterMap (sourceT)
             map-over-metadata 'ParameterAliases
                 inline (...)
                     original aliases... := ...
+                    check-alias sourceT original "alias for undefined parameter"
                     va-map
                         inline (alias)
                             'set self.parameter-aliases 
@@ -209,6 +225,7 @@ inline ParameterMap (sourceT)
         fn define-positional-parameters (self)
             map-over-metadata 'PositionalParameters
                 inline (param)
+                    check-alias sourceT param "undefined positional parameter"
                     'append self.positional-parameters (copy (Symbol->String param))
 
         inline __typecall (cls)
