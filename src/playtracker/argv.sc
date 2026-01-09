@@ -168,10 +168,11 @@ inline ParameterMap (sourceT)
 
         inline map-over-metadata (metadata mapf)
             let tuples... =
-                # if the list is not defined, do nothing
-                static-try
-                    static-eval (destructure-list metadata)
-                else ()
+                vvv static-eval
+                destructure-list
+                    # if the list is not defined, do nothing
+                    static-try (getattr sourceT metadata)
+                    else '()
             va-map 
                 inline (t)
                     static-if ((typeof t) == list)
@@ -180,13 +181,13 @@ inline ParameterMap (sourceT)
                 tuples...
 
         fn define-short-names (self)
-            map-over-metadata sourceT.ParameterShortNames
+            map-over-metadata 'ParameterShortNames
                 inline (k v)
                     short-name long-name := (char32 (static-eval (k as Symbol as string))), Symbol->String v
                     'set self.short-names short-name (copy long-name)
 
         fn define-aliases (self)
-            map-over-metadata sourceT.ParameterAliases
+            map-over-metadata 'ParameterAliases
                 inline (...)
                     original aliases... := ...
                     va-map
@@ -197,7 +198,7 @@ inline ParameterMap (sourceT)
                         aliases...
 
         fn define-positional-parameters (self)
-            map-over-metadata sourceT.PositionalParameters
+            map-over-metadata 'PositionalParameters
                 inline (param)
                     'append self.positional-parameters (copy (Symbol->String param))
 
