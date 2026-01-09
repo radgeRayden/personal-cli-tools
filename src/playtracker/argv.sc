@@ -1,7 +1,7 @@
 using import Array enum Map slice struct String radl.regex itertools Option
 from (import radl.String+) let starts-with? ASCII-tolower
 from (import C.stdlib) let strtoll strtod
-import UTF-8
+from (import UTF-8) let decoder char32
 
 enum Argument
     Key : String
@@ -75,17 +75,15 @@ inline match-string-enum (ET value)
                 raise ArgumentParsingErrorKind.UnrecognizedEnumValue
         hash (tolower value)
 
-spice gen-argument-converter (T)
+spice convert-argument (value T)
     T as:= type
 
-    vvv bind converter
     if (T == bool)
-        vvv spice-quote
-        inline (value)
+        spice-quote
             match (ASCII-tolower value)
-            case (or "on" "true" "yes" "1")
+            case (or "true" "on" "yes" "1")
                 true
-            case (or "off" "false" "no" "0")
+            case (or "false" "off" "no" "0")
                 false
             default
                 raise ArgumentParsingErrorKind.MalformedArgument
@@ -93,8 +91,7 @@ spice gen-argument-converter (T)
         if (('bitcount T) > 64) 
             error
                 .. "Cannot convert incoming argument to very wide integer " (tostring T) "."
-        vvv spice-quote
-        inline (value)
+        spice-quote
             ptr count := 'data value
             local endptr : (mutable rawstring)
             result := strtoll ptr &endptr 0
@@ -105,8 +102,7 @@ spice gen-argument-converter (T)
         if (('bitcount T) > 64) 
             error
                 .. "Cannot convert incoming argument to very wide real " (tostring T) "."
-        vvv spice-quote
-        inline (value)
+        spice-quote
             ptr count := 'data value
             local endptr : (mutable rawstring)
             result := strtod ptr &endptr
@@ -114,37 +110,25 @@ spice gen-argument-converter (T)
                 raise ArgumentParsingErrorKind.MalformedArgument
             result
     elseif (T < CEnum)
-        vvv spice-quote
-        inline (value)
+        spice-quote
             match-string-enum T value
     elseif (T == String)
-        vvv spice-quote
-        inline (value)
+        spice-quote
             imply (copy value) String
     else
         error (.. "Could not convert incoming argument to struct field of type " (tostring T))
-    converter
+
+fn destructure-list (list)
+    if (empty? list)
+        return (sc_argument_list_new 0 null)
+    head rest := decons list
+    if (head == 'square-list or head == 'curly-list)
+        head rest := decons list
+        `(unpack [(uncomma rest)])
+    else
+        `(unpack [(uncomma list)])
 
 run-stage;
-
-
-inline convert-argument (value T)
-    (gen-argument-converter T) (view value)
-
-struct blah
-    a : i32
-ParameterFunction := @ (raises
-                        (function void (viewof String) (mutable& (viewof blah)))
-                        ArgumentParsingErrorKind) 
-try
-    local s : String = "150"
-    fn f (value ctx)
-        ctx.a = ((convert-argument (view value) i32) as i32)
-    imply f ParameterFunction
-    
-except (ex)
-    print ex
-
 
 @@ memo
 inline ParameterMap (sourceT)
@@ -159,20 +143,10 @@ inline ParameterMap (sourceT)
             mandatory? : bool
             default-value : String
 
-        struct PositionalParameter
-            name : String
-            execute : ParameterFunction
-            mandatory? : bool
-            default-value : String
-
-        struct FlagParameter
-            name : String
-            execute : (@ (function void (viewof sourceT)))
-
         named-parameters : (Map String NamedParameter)
-        flags : (Map String FlagParameter)
-        flag-short-names : (Map i32 String)
-        positional-parameters : (Array PositionalParameter)
+        short-names : (Map i32 String)
+        parameter-aliases : (Map String String)
+        positional-parameters : (Array String)
 
         fn define-parameters (self)
             va-map
@@ -192,10 +166,50 @@ inline ParameterMap (sourceT)
                                     (getattr ctx k) = (convert-argument (view value) T) as T
                 sourceT.__fields__
 
+        inline map-over-metadata (metadata mapf)
+            let tuples... =
+                # if the list is not defined, do nothing
+                static-try
+                    static-eval (destructure-list metadata)
+                else ()
+            va-map 
+                inline (t)
+                    static-if ((typeof t) == list)
+                        mapf (unpack t)
+                    else (mapf t)
+                tuples...
+
+        fn define-short-names (self)
+            map-over-metadata sourceT.ParameterShortNames
+                inline (k v)
+                    short-name long-name := (char32 (static-eval (k as Symbol as string))), Symbol->String v
+                    'set self.short-names short-name (copy long-name)
+
+        fn define-aliases (self)
+            map-over-metadata sourceT.ParameterAliases
+                inline (...)
+                    original aliases... := ...
+                    va-map
+                        inline (alias)
+                            'set self.parameter-aliases 
+                                copy (Symbol->String alias)
+                                copy (Symbol->String original)
+                        aliases...
+
+        fn define-positional-parameters (self)
+            map-over-metadata sourceT.PositionalParameters
+                inline (param)
+                    'append self.positional-parameters (copy (Symbol->String param))
+
         inline __typecall (cls)
             local self := super-type.__typecall cls
             'define-parameters self
+            'define-short-names self
+            'define-aliases self
+            'define-positional-parameters self
             self
+
+        unlet map-over-metadata
 
 struct ArgumentParser
     fn... parse (self, argc : i32, argv : (@ rawstring), ctx)
@@ -279,11 +293,12 @@ struct ArgumentParser
             default
                 assert false
 
-
 # rules for defining the parameter struct
 # 1. named parameters are defined as fields in the struct. Numeric types, strings and 
     booleans are allowed. Named parameters are prefixed with `--` in the command line.
-# 2. parameters defined as booleans are flags and may take no arguments (implying true)
+# 2. parameters defined as booleans are flags and may take no arguments (implying true). Only the 
+    form `--flag=value` takes an argument. An argument following a flag not in this format will be
+    interpreted as a parameter name or positional argument.
 # 3. A scope called `ParameterShortNames` defines short single character names that alias full
     name parameters. In the case of flags, those can be combined to activate multiple flags at once.
     Combined flags never take arguments. Short names are prefixed with `-` in the command line.
@@ -304,9 +319,9 @@ struct ProgramArguments
     ParameterShortNames := '[
         s shit,
         p poop,
-        c crap,
+        c crap?,
     ]
-    ParameterAliases := '[(feces shit) (manure dung)]
+    ParameterAliases := '[(shit feces) (dung manure)]
     PositionalParameters := '[poop dung]
 
 local pm : (ParameterMap ProgramArguments)
