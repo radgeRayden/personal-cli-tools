@@ -362,32 +362,6 @@ struct ArgumentParser
 # 6. If a field is defined as an Option, that is an optional parameter. It won't cause an error if
     it isn't found in the argument stream.
 
-using import Option
-struct ProgramArguments
-    shit : String
-    poop : i32
-    crap? : bool
-    dung : (Option f32)
-
-    ParameterShortNames := '[
-        s shit,
-        p poop,
-        c crap?,
-    ]
-    ParameterAliases := '[(shit feces) (dung manure)]
-    PositionalParameters := '[poop dung]
-
-local pm : (ParameterMap ProgramArguments)
-
-fn main (argc argv)
-    local ctx : ProgramArguments
-    local argp : ArgumentParser
-    try ('parse argp argc argv ctx)
-    except (ex) (print ex.index ex.kind)
-
-local args = (arrayof rawstring "--shit=something" "-c" "25")
-main (countof args) &args
-
 do
     let ArgumentParser
     local-scope;
