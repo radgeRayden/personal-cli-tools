@@ -141,7 +141,7 @@ inline ParameterMap (sourceT)
             name : String
             execute : ParameterFunction
             mandatory? : bool
-            default-value : String
+            flag? : bool
 
         named-parameters : (Map String NamedParameter)
         short-names : (Map i32 String)
@@ -152,6 +152,10 @@ inline ParameterMap (sourceT)
             va-map
                 inline (fT)
                     k T := keyof fT.Type, unqualified fT.Type
+                    option? := T < Option
+                    let flag? =
+                        static-if option? (T.Type == bool)
+                        else (T == bool)
                     name := Symbol->String k
                     'set self.named-parameters (copy name)
                         typeinit
@@ -159,11 +163,13 @@ inline ParameterMap (sourceT)
                             execute = 
                                 fn "argv-handler" (value ctx) 
                                     let T =
-                                        static-if (T < Option)
+                                        static-if option?
                                             T.Type
                                         else T
                                     raising ArgumentParsingErrorKind
                                     (getattr ctx k) = (convert-argument (view value) T) as T
+                            mandatory? = option?
+                            flag? = flag?
                 sourceT.__fields__
 
         inline map-over-metadata (metadata mapf)
@@ -213,9 +219,10 @@ inline ParameterMap (sourceT)
         unlet map-over-metadata
 
 struct ArgumentParser
-    fn... parse (self, argc : i32, argv : (@ rawstring), ctx)
+    fn... parse (self, argc, argv : (@ rawstring), ctx)
         local parameters : (ParameterMap (typeof ctx))
         local arguments : (Array Argument)
+
         # canonicalize argument list
         local pair-pattern := try! (RegexPattern "^--(.+?)=(.+)$")
         for i in (range argc)
@@ -240,7 +247,10 @@ struct ArgumentParser
             'append arguments (Argument.Value arg)
 
         inline error (i kind)
-            raise (ArgumentParsingError i (getattr ArgumentParsingErrorKind kind))
+            static-if ((typeof kind) == Symbol)
+                raise (ArgumentParsingError i (getattr ArgumentParsingErrorKind kind))
+            else
+                raise (ArgumentParsingError i kind)
 
         inline get-arg (i)
             if (i >= (countof arguments))
@@ -249,48 +259,56 @@ struct ArgumentParser
                 arguments @ i
 
         inline get-flag (short-name)
-            'get self.flags ('get self.flag-short-names short-name)
+            'get parameters.named-parameters ('get parameters.short-names short-name)
 
         loop (i = 0)
             if (i >= (countof arguments))
                 break;
+
+            inline process (param v i)
+                try (param.execute v ctx)
+                except (ex) (error i ex)
+
             dispatch (arguments @ i)
             case Key (k)
                 # could be a named parameter or a long flag
-                try ('get self.named-parameters k)
+                # check for aliases first, then fallback to indexing by name directly
+                try ('get parameters.named-parameters ('getdefault parameters.parameter-aliases k k))
                 then (param)
+                    if param.flag?
+                        process param "true" i
+                        repeat (i + 1)
+
                     next := i + 1
                     value := get-arg next
                     if (('literal value) == Argument.Value.Literal)
                         inner := 'unsafe-extract-payload value String
-                        param.execute inner
+                        process param inner i
                     else
                         error next 'IncompleteArgument
                     repeat (i + 2)
-                else ()
-
-                try ('get self.flags k)
-                then (flag)
-                    flag.execute;
-                    repeat (i + 1)
                 else (error i 'UnrecognizedParameter)
+
             case Pair (k v)
-                try ('get self.named-parameters k)
+                try ('get parameters.named-parameters k)
                 then (param)
-                    param.execute v
+                    process param v i
                 else (error i 'UnrecognizedParameter)
                 i + 1
             case Flag (f)
                 try (get-flag f)
-                then (flag) (flag.execute)
+                then (flag) (process flag "true" i)
                 else (error i 'UnrecognizedFlag)
                 i + 1
             case Value (v)
-                if (empty? self.positional-parameters)
+                if (empty? parameters.positional-parameters)
                     error i 'UnexpectedArgument
-                param := 'remove self.positional-parameters 0
-                param.execute v
-                i + 1
+                name := 'remove parameters.positional-parameters 0
+                try ('get parameters.named-parameters name)
+                then (param)
+                    process param v i
+                    i + 1
+                else (assert false)
             default
                 assert false
 
@@ -330,7 +348,11 @@ local pm : (ParameterMap ProgramArguments)
 fn main (argc argv)
     local ctx : ProgramArguments
     local argp : ArgumentParser
-    # 'parse argp argc argv ctx
+    try ('parse argp argc argv ctx)
+    except (ex) (print ex.index ex.kind)
+
+local args = (arrayof rawstring "--shit=something" "-c" "25")
+main (countof args) &args
 
 do
     let ArgumentParser
