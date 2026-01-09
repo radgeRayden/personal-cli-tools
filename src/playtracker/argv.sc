@@ -15,7 +15,8 @@ enum ArgumentParsingErrorKind plain
     UnexpectedArgument
     UnrecognizedFlag
     UnrecognizedParameter
-    MissingPositionalArgument
+    AlreadyProcessed
+    MissingMandatoryParameter
 
     # data conversion errors
     UnsupportedIntegerType
@@ -25,6 +26,7 @@ enum ArgumentParsingErrorKind plain
 struct ArgumentParsingError
     index : i32
     kind : ArgumentParsingErrorKind
+    name : (Option String)
 
 # DESIGN NOTES
 # every parameter resolves to a full name canonical named parameter. Positional, long and
@@ -135,13 +137,14 @@ inline ParameterMap (sourceT)
     struct (.. "ParameterMap<" (tostring sourceT) ">")
         ParameterFunction := @ (raises
                                 (function void (viewof String) (mutable& (viewof sourceT)))
-                                ArgumentParsingErrorKind) 
+                                ArgumentParsingErrorKind)
 
         struct NamedParameter
             name : String
             execute : ParameterFunction
             mandatory? : bool
             flag? : bool
+            done? : bool
 
         named-parameters : (Map String NamedParameter)
         short-names : (Map i32 String)
@@ -266,6 +269,9 @@ struct ArgumentParser
                 break;
 
             inline process (param v i)
+                if param.done?
+                    error i 'AlreadyProcessed
+                else (param.done? = true)
                 try (param.execute v ctx)
                 except (ex) (error i ex)
 
@@ -311,6 +317,13 @@ struct ArgumentParser
                 else (assert false)
             default
                 assert false
+
+        for k v in parameters.named-parameters
+            if (not v.done?)
+                raise
+                    ArgumentParsingError
+                        kind = 'MissingMandatoryParameter
+                        name = (copy v.name)
 
 # rules for defining the parameter struct
 # 1. named parameters are defined as fields in the struct. Numeric types, strings and 
