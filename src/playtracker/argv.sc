@@ -35,7 +35,7 @@ struct ArgumentParsingError
   parameter to `true` without an explicit value).
 
 spice Symbol->String (sym)
-    `[(String (sym as Symbol as string))]
+    `[(sym as Symbol as string)]
 
 spice collect-enum-fields (ET)
     using import Array radl.String+
@@ -176,7 +176,7 @@ inline ParameterMap (sourceT)
                     let flag? =
                         static-if option? (T.Type == bool)
                         else (T == bool)
-                    name := Symbol->String k
+                    name := String (Symbol->String k)
                     'set self.named-parameters (copy name)
                         typeinit
                             name = (copy name)
@@ -188,7 +188,7 @@ inline ParameterMap (sourceT)
                                         else T
                                     raising ArgumentParsingErrorKind
                                     (getattr ctx k) = (convert-argument (view value) T) as T
-                            mandatory? = option?
+                            mandatory? = not option?
                             flag? = flag?
                 ContextType.__fields__
 
@@ -212,7 +212,7 @@ inline ParameterMap (sourceT)
                     let short-name long-name =
                         char32 (static-eval (k as Symbol as string))
                         Symbol->String v
-                    'set self.short-names short-name (copy long-name)
+                    'set self.short-names short-name (copy (String long-name))
 
         fn define-aliases (self)
             map-over-metadata 'ParameterAliases
@@ -222,15 +222,15 @@ inline ParameterMap (sourceT)
                     va-map
                         inline (alias)
                             'set self.parameter-aliases 
-                                copy (Symbol->String alias)
-                                copy (Symbol->String original)
+                                copy (String (Symbol->String alias))
+                                copy (String (Symbol->String original))
                         aliases...
 
         fn define-positional-parameters (self)
             map-over-metadata 'PositionalParameters
                 inline (param)
                     check-alias ContextType param "undefined positional parameter"
-                    'append self.positional-parameters (copy (Symbol->String param))
+                    'append self.positional-parameters (copy (String (Symbol->String param)))
 
         inline __typecall (cls)
             local self := super-type.__typecall cls
@@ -242,14 +242,19 @@ inline ParameterMap (sourceT)
 
         unlet map-over-metadata
 
-struct ArgumentParser
-    fn... parse (self, argc, argv : (@ rawstring), ctx)
-        local parameters : (ParameterMap (typeof ctx))
+typedef ArgumentParser
+    inline __typecall (cls)
+        bitcast none cls
+
+    fn... parse (self, argc, argv : (@ rawstring))
+        selfT := typeof self
+        local ctx : selfT.ContextType
+        local parameters : (ParameterMap selfT.ContextType)
         local arguments : (Array Argument)
 
         # canonicalize argument list
         local pair-pattern := try! (RegexPattern "^--(.+?)=(.+)$")
-        for i in (range argc)
+        for i in (range 1 argc)
             arg := 'from-rawstring String (argv @ i)
             try ('unwrap ('match pair-pattern arg))
             then (info)
@@ -340,11 +345,18 @@ struct ArgumentParser
                 assert false
 
         for k v in parameters.named-parameters
-            if (not v.done?)
+            if ((not v.done?) and v.mandatory?)
                 raise
                     ArgumentParsingError
                         kind = 'MissingMandatoryParameter
                         name = (copy v.name)
+
+        ctx
+
+inline ArgumentParser (T)
+    typedef (.. "ArgumentParser<" (tostring T) ">") < ArgumentParser : (storageof Nothing)
+        ContextType := T
+        ParameterMapType := (ParameterMap T)
 
 # rules for defining the parameter struct
 # 1. named parameters are defined as fields in the struct. Numeric types, strings and 

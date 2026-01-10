@@ -1,5 +1,5 @@
-using import Array radl.IO.FileStream String enum struct Map hash Buffer print Capture radl.strfmt slice \
-    itertools
+using import Array radl.IO.FileStream String enum struct Map hash Buffer print Capture radl.strfmt \ 
+    slice itertools .argv Option
 import C.stdlib ..common ..chrono UTF-8 ..C
 
 from (import C.stdio) let printf
@@ -202,7 +202,7 @@ fn format-game-name (name)
 
     .. name " " (char-repeat c"." (50 - width - 1))
 
-fn... display-list (line-count : i32 = 20)
+fn... display-list (line-count : i32 = 15)
     try (load-steam-appid-mappings)
     except (ex) (print f"Could not load steam appid mappings: ${ex}")
 
@@ -224,44 +224,65 @@ fn... calculate-period (start : Date, end : Date)
     capture period-filter (timestamp) {ts-start ts-end} (timestamp >= ts-start and timestamp < ts-end)
     parse-log-file (load-log-file) period-filter
 
+inline unwrap-default (v def)
+    T := (typeof v) . Type
+    try ('unwrap v)
+    else (def as T)
+
+struct ProgramArguments
+    enum ProgramCommand plain
+        All
+        Year
+        Month
+        Help
+
+    command : (Option ProgramCommand)
+    entries : (Option i32)
+
+    PositionalParameters := '[command]
+
 fn main (argc argv)
-    switch argc
-    case 1
+    local argparser : (ArgumentParser ProgramArguments)
+    let args =
+        try ('parse argparser argc argv)
+        except (ex) 
+            print ex.kind (unwrap-default ex.name S"")
+            show-help;
+            C.exit 1
+            unreachable;
+
+    display-count := unwrap-default args.entries 15
+
+    switch (unwrap-default args.command 'All)
+    case 'All
         logfile := (load-log-file)
         capture allow-all (timestamp) {} true
         parse-log-file logfile allow-all
-        display-list;
-    case 2
-        match ('from-rawstring String (argv @ 1))
-        case "help"
-            show-help;
-        case "month"
-            today := (Date.today)
-            month-start := Date today.year today.month 1
-            let next-month =
-                if (today.month == 12)
-                    Date (today.year + 1) 1 1
-                else
-                    Date today.year (today.month + 1) 1
+        display-list display-count
+    case 'Help
+        show-help;
+    case 'Month
+        today := (Date.today)
+        month-start := Date today.year today.month 1
+        let next-month =
+            if (today.month == 12)
+                Date (today.year + 1) 1 1
+            else
+                Date today.year (today.month + 1) 1
 
-            calculate-period month-start next-month
+        calculate-period month-start next-month
 
-            total-hours := ctx.total-playtime // 3600
-            fractional-hour := ((ctx.total-playtime % 3600) * 10) // 3600
-            print f"Playtime for the month of ${(chrono.get-month-name today.month)}, ${today.year} (${total-hours}.${fractional-hour} hours)"
-            display-list;
-        case "year"
-            today := (Date.today)
-            calculate-period (Date today.year 1 1) (Date (today.year + 1) 1 1)
-            total-hours := ctx.total-playtime // 3600
-            fractional-hour := ((ctx.total-playtime % 3600) * 10) // 3600
-            print f"Playtime for the year of ${today.year} (${total-hours}.${fractional-hour} hours)"
-            display-list;
-        default
-            show-help;
-            return 1
-    case 3
-        return 1
+        total-hours := ctx.total-playtime // 3600
+        fractional-hour := ((ctx.total-playtime % 3600) * 10) // 3600
+        print f"Playtime for the month of ${(chrono.get-month-name today.month)}, ${today.year} (${total-hours}.${fractional-hour} hours)"
+        display-list display-count
+    case 'Year
+        today := (Date.today)
+        calculate-period (Date today.year 1 1) (Date (today.year + 1) 1 1)
+        total-hours := ctx.total-playtime // 3600
+        fractional-hour := ((ctx.total-playtime % 3600) * 10) // 3600
+        print f"Playtime for the year of ${today.year} (${total-hours}.${fractional-hour} hours)"
+        display-list display-count
     default
         show-help;
         return 1
