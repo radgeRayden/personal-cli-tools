@@ -1,4 +1,4 @@
-VERSION := "8dc0a62ab4fc46420365fbe3aabba5fef0fcbfcd"
+VERSION := "8ec1ff715d5ffef13858a0917717af5791dbca37"
 SUMMARY := "radge's utility library"
 
 src :=

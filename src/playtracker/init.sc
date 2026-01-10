@@ -1,5 +1,5 @@
 using import Array radl.IO.FileStream String enum struct Map hash Buffer print Capture radl.strfmt \ 
-    slice itertools .argv Option
+    slice itertools Option radl.argv
 import C.stdlib ..common ..chrono UTF-8 ..C
 
 from (import C.stdio) let printf
@@ -238,6 +238,8 @@ struct ProgramArguments
 
     command : (Option ProgramCommand)
     entries : (Option i32)
+    start : (Option String)
+    end : (Option String)
 
     PositionalParameters := '[command]
 
@@ -256,8 +258,18 @@ fn main (argc argv)
     switch (unwrap-default args.command 'All)
     case 'All
         logfile := (load-log-file)
-        capture allow-all (timestamp) {} true
-        parse-log-file logfile allow-all
+        let start =
+            try
+                date-string := 'unwrap args.start
+                Date date-string
+            else (Date 1970)
+
+        let end =
+            try
+                date-string := 'unwrap args.end
+                Date date-string
+            else (Date.today)
+        calculate-period start end
         display-list display-count
     case 'Help
         show-help;

@@ -14,13 +14,30 @@ struct Date
     month : i32
     day : i32
 
+    fn... from-tm (tm : C.tm)
     fn today ()
         now := (timestamp-now)
         datetime := C.localtime (typeinit@ now)
+        this-type @datetime
+
+    inline... __typecall (cls, year : i32, month : i32 = 1, day : i32 = 1)
+        Struct.__typecall cls year month day
+    case (cls, c-calendar-time : C.tm)
         this-type 
-            datetime.tm_year + 1900
-            datetime.tm_mon + 1
-            datetime.tm_mday
+            c-calendar-time.tm_year + 1900
+            c-calendar-time.tm_mon + 1
+            c-calendar-time.tm_mday
+    case (cls, date-string : String)
+        ptr count := 'data date-string
+        local calendar-time : C.tm
+        local result := C.strptime ptr "%Y-%m-%d" &calendar-time
+        if (result == null)
+            result = C.strptime ptr "%Y-%m" &calendar-time
+        # TODO: change to specific error
+        if (result == null) (raise)
+        if (@result != 0:i8) (raise)
+
+        this-type calendar-time
 
 fn... timestamp-day (year : i32, month : i32 = 1, day : i32 = 1)
     date-now := C.localtime (typeinit@ (timestamp-now))
