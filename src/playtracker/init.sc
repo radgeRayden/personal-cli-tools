@@ -190,7 +190,7 @@ fn format-game-name (name)
                 take-limit 0 ((t x) -> (t + (C.wcwidth x)))
                     (t) -> (t <= 22)
                 UTF-8.encoder
-                mut! String
+                local : String
 
         let rrhs =
             ->> ('reverse decoded)
@@ -220,7 +220,7 @@ fn... display-list (line-count : i32 = 15)
         printf "%3d. %10s | %s %s\n" (i + 1) ('data formatted-time) (formatted-name as rawstring) (game.platform as rawstring)
 
 fn... calculate-period (start : Date, end : Date)
-    ts-start ts-end := chrono.timestamp-day start, chrono.timestamp-day end
+    ts-start ts-end := chrono.timestamp-day start, (chrono.timestamp-day end) + 24 * 3600 - 1
     capture period-filter (timestamp) {ts-start ts-end} (timestamp >= ts-start and timestamp < ts-end)
     parse-log-file (load-log-file) period-filter
 
