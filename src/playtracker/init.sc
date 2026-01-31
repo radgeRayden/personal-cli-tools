@@ -229,23 +229,29 @@ inline unwrap-default (v def)
     try ('unwrap v)
     else (def as T)
 
-struct ProgramArguments
-    enum ProgramCommand plain
-        All
-        Year
-        Month
-        Help
+struct CLIDisplayCommand < Struct
+    max-entries : (Option i32)
 
-    command : (Option ProgramCommand)
-    entries : (Option i32)
-    start : (Option String)
-    end : (Option String)
+enum ProgramArguments
+    all : 
+        struct CommandAll < CLIDisplayCommand
+            start : (Option String)
+            end : (Option String)
+    year :
+        struct CommandYear < CLIDisplayCommand
+            year : (Option String)
+            PositionalParameters := '( year )
+    month :
+        struct CommandMonth < CLIDisplayCommand
+            month : (Option String)
+            PositionalParameters := '( month )
+    # help # FIXME: needs support for unit tags
 
-    PositionalParameters := '[command]
+    DefaultCommand := 'all
 
 fn main (argc argv)
     local argparser : (ArgumentParser ProgramArguments)
-    let args =
+    let cmd =
         try ('parse argparser argc argv)
         except (ex) 
             print ex.kind (unwrap-default ex.what S"")
@@ -253,10 +259,8 @@ fn main (argc argv)
             C.exit 1
             unreachable;
 
-    display-count := unwrap-default args.entries 15
-
-    switch (unwrap-default args.command 'All)
-    case 'All
+    dispatch cmd
+    case all (args)
         logfile := (load-log-file)
         let start =
             try
@@ -270,30 +274,46 @@ fn main (argc argv)
                 Date date-string
             else (Date.today)
         calculate-period start end
+
+        let display-count =
+            try ('unwrap args.max-entries)
+            else 15
         display-list display-count
-    case 'Help
-        show-help;
-    case 'Month
-        today := (Date.today)
-        month-start := Date today.year today.month 1
+    # case 'Help
+    #     show-help;
+    case month (args)
+        let reference-date = 
+            try (Date ('unwrap args.month))
+            else (Date.today)
+        month-start := Date reference-date.year reference-date.month 1
         let next-month =
-            if (today.month == 12)
-                Date (today.year + 1) 1 1
+            if (reference-date.month == 12)
+                Date (reference-date.year + 1) 1 1
             else
-                Date today.year (today.month + 1) 1
+                Date reference-date.year (reference-date.month + 1) 1
 
         calculate-period month-start next-month
 
         total-hours := ctx.total-playtime // 3600
         fractional-hour := ((ctx.total-playtime % 3600) * 10) // 3600
-        print f"Playtime for the month of ${(chrono.get-month-name today.month)}, ${today.year} (${total-hours}.${fractional-hour} hours)"
+        print f"Playtime for the month of ${(chrono.get-month-name reference-date.month)}, ${reference-date.year} (${total-hours}.${fractional-hour} hours)"
+
+        let display-count =
+            try ('unwrap args.max-entries)
+            else 15
         display-list display-count
-    case 'Year
-        today := (Date.today)
-        calculate-period (Date today.year 1 1) (Date (today.year + 1) 1 1)
+    case year (args)
+        let reference-date =
+            try (Date ('unwrap args.year))
+            else (Date.today)
+        calculate-period (Date reference-date.year 1 1) (Date (reference-date.year + 1) 1 1)
         total-hours := ctx.total-playtime // 3600
         fractional-hour := ((ctx.total-playtime % 3600) * 10) // 3600
-        print f"Playtime for the year of ${today.year} (${total-hours}.${fractional-hour} hours)"
+        print f"Playtime for the year of ${reference-date.year} (${total-hours}.${fractional-hour} hours)"
+
+        let display-count =
+            try ('unwrap args.max-entries)
+            else 15
         display-list display-count
     default
         show-help;

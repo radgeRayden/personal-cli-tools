@@ -27,7 +27,7 @@ struct Date
             c-calendar-time.tm_year + 1900
             c-calendar-time.tm_mon + 1
             c-calendar-time.tm_mday
-    case (cls, date-string : String)
+    case (cls, date-string : (viewof String))
         ptr count := 'data date-string
         local calendar-time : C.tm
         local result := C.strptime ptr "%Y-%m-%d" &calendar-time
