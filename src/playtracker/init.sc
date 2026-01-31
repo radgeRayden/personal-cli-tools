@@ -248,7 +248,7 @@ fn main (argc argv)
     let args =
         try ('parse argparser argc argv)
         except (ex) 
-            print ex.kind (unwrap-default ex.name S"")
+            print ex.kind (unwrap-default ex.what S"")
             show-help;
             C.exit 1
             unreachable;

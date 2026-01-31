@@ -1,10 +1,10 @@
-VERSION := "8ec1ff715d5ffef13858a0917717af5791dbca37"
+VERSION := "3307afb888be3ac2ea32d2942df9a2e278c5fdbc"
 SUMMARY := "radge's utility library"
 
 src :=
     commonpath
         extract
-            download "https://github.com/radgeRayden/radl/archive/{VERSION}.tar.gz"
+            download "https://codeberg.org/radge/radl/archive/{VERSION}.tar.gz"
 
 package radl
     summary SUMMARY
