@@ -209,6 +209,7 @@ fn... display-list (line-count : i32 = 15)
         local formatted-name = format-game-name (copy game.name)
         printf "%3d. %10s | %s %s\n" (i + 1) ('data formatted-time) (formatted-name as rawstring) (game.platform as rawstring)
 
+""""Aggregate data for a period of time. Includes the entirety of the day specified in start and end.
 fn... calculate-period (start : Date, end : Date)
     ts-start ts-end := chrono.timestamp-day start, (chrono.timestamp-day end) + 24 * 3600 - 1
     capture period-filter (timestamp) {ts-start ts-end} (timestamp >= ts-start and timestamp < ts-end)
@@ -239,10 +240,12 @@ enum ProgramArguments
     year :
         struct CommandYear < CLIDisplayCommand
             @@ positional
+            @@ doc "Year period (number)"
             year : (Option i32)
     month :
         struct CommandMonth < CLIDisplayCommand
             @@ positional
+            @@ doc "Month period in the format \"YYYY-MM\""
             month : (Option String)
     version
     help
@@ -318,14 +321,11 @@ fn main (argc argv)
         let reference-date = 
             try (Date ('unwrap args.month))
             else (Date.today)
-        month-start := Date reference-date.year reference-date.month 1
-        let next-month =
-            if (reference-date.month == 12)
-                Date (reference-date.year + 1) 1 1
-            else
-                Date reference-date.year (reference-date.month + 1) 1
+        year month := reference-date.year, reference-date.month
+        month-start := Date year month 1
+        month-end := Date year month (chrono.days-in-month year month)
 
-        calculate-period month-start next-month
+        calculate-period month-start month-end
 
         total-hours := ctx.total-playtime // 3600
         fractional-hour := ((ctx.total-playtime % 3600) * 10) // 3600
@@ -339,7 +339,8 @@ fn main (argc argv)
         let reference-date =
             try (Date (copy ('unwrap args.year)))
             else (Date.today)
-        calculate-period (Date reference-date.year 1 1) (Date (reference-date.year + 1) 1 1)
+
+        calculate-period (Date reference-date.year 1 1) (Date reference-date.year 12 31)
         total-hours := ctx.total-playtime // 3600
         fractional-hour := ((ctx.total-playtime % 3600) * 10) // 3600
         print f"Playtime for the year of ${reference-date.year} (${total-hours}.${fractional-hour} hours)"
