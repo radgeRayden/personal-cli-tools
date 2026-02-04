@@ -1,6 +1,6 @@
 using import Array radl.IO.FileStream String enum struct Map hash Buffer print Capture radl.strfmt \ 
-    slice itertools Option radl.argv
-import C.stdlib ..common ..chrono UTF-8 ..C
+    slice itertools Option radl.argv radl.ext
+import C.stdlib ..common ..chrono UTF-8 ..C radl.version-string
 
 from (import C.stdio) let printf
 from (import stb.sprintf) let snprintf
@@ -230,22 +230,31 @@ inline unwrap-default (v def)
     else (def as T)
 
 struct CLIDisplayCommand < Struct
+    @@ doc "Maximum number of games to display in the list"
     max-entries : (Option i32)
 
 enum ProgramArguments
     all : 
         struct CommandAll < CLIDisplayCommand
+            @@ doc "Start of tracking period"
+            @@ short "s"
+            @@ positional
             start : (Option String)
+
+            @@ doc "End of tracking period"
+            @@ short "d"
+            @@ positional
             end : (Option String)
+
     year :
         struct CommandYear < CLIDisplayCommand
+            @@ positional
             year : (Option String)
-            PositionalParameters := '( year )
     month :
         struct CommandMonth < CLIDisplayCommand
+            @@ positional
             month : (Option String)
-            PositionalParameters := '( month )
-    # help # FIXME: needs support for unit tags
+    version
 
     DefaultCommand := 'all
 
@@ -315,6 +324,9 @@ fn main (argc argv)
             try ('unwrap args.max-entries)
             else 15
         display-list display-count
+    case version (args)
+        version := static-eval ((radl.version-string.git-version) as string)
+        print f"playtracker ${version}"
     default
         show-help;
         return 1
