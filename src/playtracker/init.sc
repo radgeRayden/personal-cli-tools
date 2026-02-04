@@ -249,7 +249,7 @@ enum ProgramArguments
     year :
         struct CommandYear < CLIDisplayCommand
             @@ positional
-            year : (Option String)
+            year : (Option i32)
     month :
         struct CommandMonth < CLIDisplayCommand
             @@ positional
@@ -313,7 +313,7 @@ fn main (argc argv)
         display-list display-count
     case year (args)
         let reference-date =
-            try (Date ('unwrap args.year))
+            try (Date (copy ('unwrap args.year)))
             else (Date.today)
         calculate-period (Date reference-date.year 1 1) (Date (reference-date.year + 1) 1 1)
         total-hours := ctx.total-playtime // 3600
