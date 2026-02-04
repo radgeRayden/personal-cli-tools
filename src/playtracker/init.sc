@@ -87,16 +87,6 @@ struct AppContext
 
 global ctx : AppContext
 
-fn show-help ()
-    print 
-        """"usage: playtracker [command]
-            Commands:
-            display (default): display statistics
-                flags:
-                    --month (default)
-                    --year
-                    --period <start> [<end>]
-
 fn load-steam-appid-mappings ()
     path := f"${(common.get-data-directory)}/playtracker/app-id-mapping.txt"
     local regexp =
@@ -255,8 +245,42 @@ enum ProgramArguments
             @@ positional
             month : (Option String)
     version
+    help
 
     DefaultCommand := 'all
+
+fn show-help ()
+    print 
+        "usage: playtracker [command] [params...]\n\n\
+        Commands:"
+    va-map
+        inline (fT)
+            name := fT.Name as zarray
+            static-if (fT.Name == ProgramArguments.DefaultCommand)
+                print name "(default)"
+            else
+                print name
+
+            static-if (fT.Type != Nothing)
+                va-map
+                    inline (fT)
+                        name := keyof fT.Type
+                        local str : String = "    --" .. (name as zarray)
+                        static-try
+                            short-name := static-eval (fT.ShortName as i8 as string)
+                            str ..= "/-" .. short-name
+                        else ()
+                        static-try
+                            str ..= ": " .. fT.HelpString
+                        else ()
+                        static-try
+                            fT.Positional
+                            str ..= " (positional)"
+                        else ()
+                        print str
+                    (elementof fT.Type 0) . __fields__
+            print ""
+        ProgramArguments.__fields__
 
 fn main (argc argv)
     local argparser : (ArgumentParser ProgramArguments)
@@ -288,8 +312,8 @@ fn main (argc argv)
             try ('unwrap args.max-entries)
             else 15
         display-list display-count
-    # case 'Help
-    #     show-help;
+    case help ()
+        show-help;
     case month (args)
         let reference-date = 
             try (Date ('unwrap args.month))
