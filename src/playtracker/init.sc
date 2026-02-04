@@ -276,10 +276,19 @@ fn show-help ()
                         static-try
                             str ..= ": " .. fT.HelpString
                         else ()
-                        static-try
-                            fT.Positional
+
+                        let positional? =
+                            static-try fT.Positional
+                            else false
+                        optional? := (unqualified fT.Type) < Option
+                        if (positional? and optional?)
+                            str ..= " (positional, optional)"
+                        elseif optional?
+                            str ..= " (optional)"
+                        elseif positional?
                             str ..= " (positional)"
                         else ()
+
                         print str
                     (elementof fT.Type 0) . __fields__
             print ""
