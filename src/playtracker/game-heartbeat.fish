@@ -1,6 +1,6 @@
 #!/usr/bin/env fish
 
-set state_path $XDG_STATE_HOME
+set state_path $XDG_STATE_HOME/playtracker/
 if [ -z "$XDG_STATE_HOME" ]
     set state_path "$HOME/.local/state/playtracker/"
 end

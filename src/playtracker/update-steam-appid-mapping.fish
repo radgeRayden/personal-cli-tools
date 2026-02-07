@@ -1,6 +1,6 @@
 #!/usr/bin/env fish
 
-set data_path $XDG_DATA_HOME
+set data_path $XDG_DATA_HOME/playtracker/
 if [ -z "$XDG_DATA_HOME" ]
     set data_path "$HOME/.local/share/playtracker/"
 end
