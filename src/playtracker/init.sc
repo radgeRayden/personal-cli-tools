@@ -225,7 +225,8 @@ struct CLIDisplayCommand < Struct
     max-entries : (Option i32)
 
 enum ProgramArguments
-    all : 
+    @@ doc "Display all playtime ever recorded, or during a specific period. If omitted, `start` is beginning of time and `end` is today."
+    all :
         struct CommandAll < CLIDisplayCommand
             @@ doc "Start of tracking period"
             @@ short "s"
@@ -233,21 +234,28 @@ enum ProgramArguments
             start : (Option String)
 
             @@ doc "End of tracking period"
-            @@ short "d"
+            @@ short "e"
             @@ positional
             end : (Option String)
 
+    @@ doc "Playtime for a year period (january to december)"
     year :
         struct CommandYear < CLIDisplayCommand
             @@ positional
             @@ doc "Year period (number)"
             year : (Option i32)
+
+    @@ doc "Playtime for a month period (first to last day of the month)"
     month :
         struct CommandMonth < CLIDisplayCommand
             @@ positional
             @@ doc "Month period in the format \"YYYY-MM\""
             month : (Option String)
+
+    @@ doc "Print the program version"
     version
+
+    @@ doc "Display this help"
     help
 
     DefaultCommand := 'all
@@ -263,6 +271,7 @@ fn show-help ()
                 print name "(default)"
             else
                 print name
+            print fT.HelpString
 
             static-if (fT.Type != Nothing)
                 va-map
@@ -373,6 +382,6 @@ sugar-if main-module?
     argv* @ 0 = name
     for i in (range 1 (argc + 1))
         argv* @ i = argv @ (i - 1)
-    main (argc + 1) argv*
+    # main (argc + 1) argv*
 else
     main
